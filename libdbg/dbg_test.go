@@ -5,7 +5,6 @@ import (
 	"testing"
 	//"os"
 	//"syscall"
-	"time"
 )
 
 func Test_dbg(t *testing.T) {
@@ -16,14 +15,19 @@ func Test_dbg(t *testing.T) {
 	}
 	defer dbg.Close()
 	for _ = range dbg.Events() {
-		time.Sleep(time.Second * 1)
 		regs, err := dbg.GetRegs()
 		if err != nil {
 			fmt.Println(err)
 		}
 		if regs != nil {
-			fmt.Println(regs)
+			fmt.Printf("%+v\n", regs)
 		}
+		var txt = make([]byte, 20)
+		_, err = dbg.PeekText(uintptr(regs.Pc), txt)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Printf("%x:%v\n", regs.Pc, txt)
 		dbg.Continue()
 	}
 	fmt.Println("exit")

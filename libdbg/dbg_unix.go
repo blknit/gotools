@@ -149,6 +149,48 @@ func (a *Dbg) GetRegs() (*syscall.PtraceRegs, error) {
 	return nil, DbgExited
 }
 
+func (a *Dbg) SingleStep() error {
+	err := make(chan error, 1)
+	if a.do(func() { err <- syscall.PtraceSingleStep(a.proc.Pid) }) {
+		return <-err
+	}
+	return DbgExited
+}
+
+func (a *Dbg) Syscall() error {
+	err := make(chan error, 1)
+	if a.do(func() { err <- syscall.PtraceSyscall(a.proc.Pid, 0) }) {
+		return <-err
+	}
+	return DbgExited
+}
+
+func (a *Dbg) PeekText(addr uintptr, out []byte) (int, error) {
+	err := make(chan error, 1)
+	count := make(chan int, 1)
+	if a.do(func() {
+		c, e := syscall.PtracePeekText(a.proc.Pid, addr, out)
+		count <- c
+		err <- e
+	}) {
+		return <-count, <-err
+	}
+	return 0, DbgExited
+}
+
+func (a *Dbg) PeekData(addr uintptr, out []byte) (int, error) {
+	err := make(chan error, 1)
+	count := make(chan int, 1)
+	if a.do(func() {
+		c, e := syscall.PtracePeekData(a.proc.Pid, addr, out)
+		count <- c
+		err <- e
+	}) {
+		return <-count, <-err
+	}
+	return 0, DbgExited
+}
+
 func (a *Dbg) do(f func()) bool {
 	if a.cmds != nil {
 		a.cmds <- f
