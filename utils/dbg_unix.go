@@ -2,9 +2,11 @@ package utils
 
 import (
 	"errors"
+	sys "golang.org/x/sys/unix"
 	"os"
 	"runtime"
 	"syscall"
+	"unsafe"
 )
 
 // gitbug.com/tfogal/ptrace/blob/master/ptrace.go
@@ -129,7 +131,16 @@ func (a *Dbg) GetRegs() (*syscall.PtraceRegs, error) {
 	reg := make(chan *syscall.PtraceRegs, 1)
 	if a.do(func() {
 		r := &syscall.PtraceRegs{}
-		e := syscall.PtraceGetRegs(a.proc.Pid, r)
+		var e error
+		if runtime.GOARCH == "arm64" {
+			iov := sys.Iovec{Base: (*byte)(unsafe.Pointer(r)), Len: uint64(unsafe.Sizeof(*r))}
+			_, _, e = syscall.Syscall6(syscall.SYS_PTRACE, sys.PTRACE_GETREGSET, uintptr(a.proc.Pid), 1, uintptr(unsafe.Pointer(&iov)), 0, 0)
+			if e == syscall.Errno(0) {
+				e = nil
+			}
+		} else {
+			e = syscall.PtraceGetRegs(a.proc.Pid, r)
+		}
 		err <- e
 		reg <- r
 	}) {

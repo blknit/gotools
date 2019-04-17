@@ -16,6 +16,6 @@ func LoadProcess(name string, arg ...string) (*os.Process, error) {
 	var attr os.ProcAttr
 	attr.Files = []*os.File{os.Stdin, os.Stdout, os.Stderr}
 	attr.Sys = &syscall.SysProcAttr{}
-    attr.Sys.CreationFlags = DEBUG_ONLY_THIS_PROCESS
+	attr.Sys.CreationFlags = DEBUG_ONLY_THIS_PROCESS
 	return os.StartProcess(name, arg, &attr)
 }

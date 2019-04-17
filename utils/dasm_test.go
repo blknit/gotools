@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"testing"
 	"gotest.tools/assert"
+	"testing"
 )
 
 func Test_asmx86(t *testing.T) {
