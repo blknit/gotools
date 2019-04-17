@@ -3,12 +3,13 @@ package utils
 import (
 	"fmt"
 	"testing"
-    //"os"
-    //"syscall"
-    "time"
+	//"os"
+	//"syscall"
+	"time"
 )
+
 func Test_dbg(t *testing.T) {
-	dbg, err := Debug("../../../bin/walua",[]string{""})
+	dbg, err := Debug("../../../bin/golua", []string{""})
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -25,7 +26,7 @@ func Test_dbg(t *testing.T) {
 
 /*
 func Test_dbg(t *testing.T) {
-	dbg, err := Debug("../../../bin/walua")
+	dbg, err := Debug("../../../bin/golua")
 	if err != nil {
 		fmt.Println(err)
 		return
