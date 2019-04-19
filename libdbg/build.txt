@@ -1,0 +1,1 @@
+go build -buildmode=c-shared -o libdbg.so blknit/libdbg/cmd/libdbg
