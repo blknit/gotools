@@ -167,26 +167,52 @@ func (a *Dbg) Syscall() error {
 
 func (a *Dbg) PeekText(addr uintptr, out []byte) (int, error) {
 	err := make(chan error, 1)
-	count := make(chan int, 1)
+	cou := make(chan int, 1)
 	if a.do(func() {
 		c, e := syscall.PtracePeekText(a.proc.Pid, addr, out)
-		count <- c
+		cou <- c
 		err <- e
 	}) {
-		return <-count, <-err
+		return <-cou, <-err
+	}
+	return 0, DbgExited
+}
+
+func (a *Dbg) PokeText(addr uintptr, data []byte) (int, error) {
+	err := make(chan error, 1)
+	cou := make(chan int, 1)
+	if a.do(func() {
+		c, e := syscall.PtracePokeText(a.proc.Pid, addr, data)
+		cou <- c
+		err <- e
+	}) {
+		return <-cou, <-err
 	}
 	return 0, DbgExited
 }
 
 func (a *Dbg) PeekData(addr uintptr, out []byte) (int, error) {
 	err := make(chan error, 1)
-	count := make(chan int, 1)
+	cou := make(chan int, 1)
 	if a.do(func() {
 		c, e := syscall.PtracePeekData(a.proc.Pid, addr, out)
-		count <- c
+		cou <- c
 		err <- e
 	}) {
-		return <-count, <-err
+		return <-cou, <-err
+	}
+	return 0, DbgExited
+}
+
+func (a *Dbg) PokeData(addr uintptr, data []byte) (int, error) {
+	err := make(chan error, 1)
+	cou := make(chan int, 1)
+	if a.do(func() {
+		c, e := syscall.PtracePokeData(a.proc.Pid, addr, data)
+		cou <- c
+		err <- e
+	}) {
+		return <-cou, <-err
 	}
 	return 0, DbgExited
 }
