@@ -17,17 +17,12 @@ var (
 
 type event interface{}
 
-type breakpoint struct {
-	addr uintptr
-	code uint8
-}
-
 type Dbg struct {
 	proc   *os.Process
 	events chan event
 	err    chan error
 	cmds   chan func()
-	breaks []breakpoint
+	breaks [uintptr]byte
 }
 
 func Debug(name string, args []string) (*Dbg, error) {
@@ -141,8 +136,41 @@ func (a *Dbg) GetPC() (uintptr, error) {
 	return uintptr(regs.Pc), nil
 }
 
-func (a *Dbg) SetPC() error {
+func (a *Dbg) SetPC(pc uintptr) error {
+	regs, err := a.GetRegs()
+	if err != nil {
+		return err
+	}
+	regs.SetPC(uint64(pc))
+	err = a.SetRegs(regs)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func (a *Dbg) SetBreakPoint(addr uintptr) error {
+	if _, ok := a.breaks; ok {
+		return nil
+	}
+	data := make([]byte, 1)
+	_, err := PeekText(addr, data)
+	if err != nil {
+		return err
+	}
+	_, err := PokeText(addr, []byte{0xCC})
+	if err != nil {
+		return err
+	}
+	a.breaks[addr] = data[0]
+	return nil
+}
+
+func (a *Dbg) ClearBreakPoint(addr uintptr) error {
+	if _, ok := a.breaks; ok {
+		return nil
+	}
+	delete(a.breaks, addr)
 }
 
 func (a *Dbg) GetRegs() (*syscall.PtraceRegs, error) {
@@ -173,7 +201,7 @@ func (a *Dbg) SetRegs(reg *syscall.PtraceRegs) error {
 	if a.do(func() {
 		var e error
 		if runtime.GOARCH == "arm64" {
-			iov := sys.Iovec{Base: (*byte)(unsafe.Pointer(reg)), Len: uint64(unsafe.Sizeof(reg))}
+			iov := sys.Iovec{Base: (*byte)(unsafe.Pointer(reg)), Len: uint64(unsafe.Sizeof(*reg))}
 			_, _, e = syscall.Syscall6(syscall.SYS_PTRACE, sys.PTRACE_SETREGSET, uintptr(a.proc.Pid), 1, uintptr(unsafe.Pointer(&iov)), 0, 0)
 			if e == syscall.Errno(0) {
 				e = nil
