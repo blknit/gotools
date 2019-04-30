@@ -17,11 +17,17 @@ var (
 
 type event interface{}
 
+type breakpoint struct {
+	addr uintptr
+	code uint8
+}
+
 type Dbg struct {
 	proc   *os.Process
 	events chan event
 	err    chan error
 	cmds   chan func()
+	breaks []breakpoint
 }
 
 func Debug(name string, args []string) (*Dbg, error) {
@@ -126,6 +132,19 @@ func (a *Dbg) Continue() error {
 	return DbgExited
 }
 
+func (a *Dbg) GetPC() (uintptr, error) {
+	regs, err := a.GetRegs()
+	if err != nil {
+		return 0, err
+	}
+
+	return uintptr(regs.Pc), nil
+}
+
+func (a *Dbg) SetPC() error {
+	return nil
+}
+
 func (a *Dbg) GetRegs() (*syscall.PtraceRegs, error) {
 	err := make(chan error, 1)
 	reg := make(chan *syscall.PtraceRegs, 1)
@@ -147,6 +166,26 @@ func (a *Dbg) GetRegs() (*syscall.PtraceRegs, error) {
 		return <-reg, <-err
 	}
 	return nil, DbgExited
+}
+
+func (a *Dbg) SetRegs(reg *syscall.PtraceRegs) error {
+	err := make(chan error, 1)
+	if a.do(func() {
+		var e error
+		if runtime.GOARCH == "arm64" {
+			iov := sys.Iovec{Base: (*byte)(unsafe.Pointer(reg)), Len: uint64(unsafe.Sizeof(reg))}
+			_, _, e = syscall.Syscall6(syscall.SYS_PTRACE, sys.PTRACE_SETREGSET, uintptr(a.proc.Pid), 1, uintptr(unsafe.Pointer(&iov)), 0, 0)
+			if e == syscall.Errno(0) {
+				e = nil
+			}
+		} else {
+			e = syscall.PtraceSetRegs(a.proc.Pid, reg)
+		}
+		err <- e
+	}) {
+		return <-err
+	}
+	return DbgExited
 }
 
 func (a *Dbg) SingleStep() error {
