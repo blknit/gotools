@@ -22,7 +22,7 @@ type Dbg struct {
 	events chan event
 	err    chan error
 	cmds   chan func()
-	breaks [uintptr]byte
+	breaks map[uintptr]byte
 }
 
 func Debug(name string, args []string) (*Dbg, error) {
@@ -150,16 +150,14 @@ func (a *Dbg) SetPC(pc uintptr) error {
 }
 
 func (a *Dbg) SetBreakPoint(addr uintptr) error {
-	if _, ok := a.breaks; ok {
+	if _, ok := a.breaks[addr]; ok {
 		return nil
 	}
 	data := make([]byte, 1)
-	_, err := PeekText(addr, data)
-	if err != nil {
+	if _, err := a.PeekText(addr, data); err != nil {
 		return err
 	}
-	_, err := PokeText(addr, []byte{0xCC})
-	if err != nil {
+	if _, err := a.PokeText(addr, []byte{0xCC}); err != nil {
 		return err
 	}
 	a.breaks[addr] = data[0]
@@ -167,10 +165,11 @@ func (a *Dbg) SetBreakPoint(addr uintptr) error {
 }
 
 func (a *Dbg) ClearBreakPoint(addr uintptr) error {
-	if code, ok := a.breaks[addr]; !ok {
+	code, ok := a.breaks[addr]
+	if !ok {
 		return nil
 	}
-	_, err := PokeText(addr, []byte{code})
+	_, err := a.PokeText(addr, []byte{code})
 	if err != nil {
 		return err
 	}
@@ -217,14 +216,6 @@ func (a *Dbg) SetRegs(reg *syscall.PtraceRegs) error {
 		}
 		err <- e
 	}) {
-		return <-err
-	}
-	return DbgExited
-}
-
-func (a *Dbg) SingleStep() error {
-	err := make(chan error, 1)
-	if a.do(func() { err <- syscall.PtraceSingleStep(a.proc.Pid) }) {
 		return <-err
 	}
 	return DbgExited
