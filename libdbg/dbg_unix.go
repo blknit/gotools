@@ -167,10 +167,16 @@ func (a *Dbg) SetBreakPoint(addr uintptr) error {
 }
 
 func (a *Dbg) ClearBreakPoint(addr uintptr) error {
-	if _, ok := a.breaks; ok {
+	if code, ok := a.breaks[addr]; !ok {
 		return nil
 	}
+	_, err := PokeText(addr, []byte{code})
+	if err != nil {
+		return err
+	}
+
 	delete(a.breaks, addr)
+	return nil
 }
 
 func (a *Dbg) GetRegs() (*syscall.PtraceRegs, error) {
